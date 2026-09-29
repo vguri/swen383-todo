@@ -1,17 +1,28 @@
-// TodoService owns the task list and the operations on it. No DOM in here.
-class TodoService {
-  constructor() {
-    this.tasks = [];
-    this.loadTasks();
+// LocalStorageHandler is the only code that knows tasks live in localStorage.
+class LocalStorageHandler {
+  constructor(key = 'todo-tasks') {
+    this.key = key;
   }
 
-  loadTasks() {
-    const raw = localStorage.getItem('todo-tasks');
-    this.tasks = raw ? JSON.parse(raw) : [];
+  load() {
+    const raw = localStorage.getItem(this.key);
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  save(tasks) {
+    localStorage.setItem(this.key, JSON.stringify(tasks));
+  }
+}
+
+// TodoService owns the task list and the operations on it. No DOM in here.
+class TodoService {
+  constructor(storage) {
+    this.storage = storage;
+    this.tasks = this.storage.load();
   }
 
   saveTasks() {
-    localStorage.setItem('todo-tasks', JSON.stringify(this.tasks));
+    this.storage.save(this.tasks);
   }
 
   addTask(description, type) {
@@ -170,7 +181,8 @@ function summarizeWorkload(manager) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  const service = new TodoService();
+  const storage = new LocalStorageHandler();
+  const service = new TodoService(storage);
   const renderer = new TodoRenderer('task-container', service);
   renderer.render();
 
