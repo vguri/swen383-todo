@@ -1,8 +1,7 @@
-// TodoManager owns the whole app: task data, persistence, and rendering.
-class TodoManager {
-  constructor(containerId) {
+// TodoService owns the task list and the operations on it. No DOM in here.
+class TodoService {
+  constructor() {
     this.tasks = [];
-    this.container = document.getElementById(containerId);
     this.loadTasks();
   }
 
@@ -19,7 +18,7 @@ class TodoManager {
     const trimmed = description.trim();
     if (trimmed.length < 3) {
       alert('Task needs at least a few characters.');
-      return false;
+      return null;
     }
 
     if (this.tasks.length >= 20) {
@@ -41,8 +40,7 @@ class TodoManager {
 
     this.tasks.push(task);
     this.saveTasks();
-    this.render(task.id);
-    return true;
+    return task;
   }
 
   toggleComplete(id) {
@@ -50,18 +48,24 @@ class TodoManager {
     if (!task) return;
     task.completed = !task.completed;
     this.saveTasks();
-    this.render();
   }
 
   deleteTask(id) {
     this.tasks = this.tasks.filter(t => t.id !== id);
     this.saveTasks();
-    this.render();
+  }
+}
+
+// TodoRenderer owns the DOM: it draws both lists and wires the row buttons.
+class TodoRenderer {
+  constructor(containerId, service) {
+    this.container = document.getElementById(containerId);
+    this.service = service;
   }
 
   renderPendingRows() {
     let html = '';
-    for (const task of this.tasks) {
+    for (const task of this.service.tasks) {
       if (task.completed) continue;
       html += buildTaskRow(task.id, task.desc, task.completed, task.priority, task.createdAt, true);
     }
@@ -70,7 +74,7 @@ class TodoManager {
 
   renderCompletedRows() {
     let html = '';
-    for (const task of this.tasks) {
+    for (const task of this.service.tasks) {
       if (!task.completed) continue;
       html += buildTaskRow(task.id, task.desc, task.completed, task.priority, task.createdAt, true);
     }
@@ -84,7 +88,7 @@ class TodoManager {
     const completedHtml = this.renderCompletedRows();
 
     let oldestPendingLabel = 'none';
-    for (const task of this.tasks) {
+    for (const task of this.service.tasks) {
       if (!task.completed) {
         oldestPendingLabel = task.desc;
         break;
@@ -92,7 +96,7 @@ class TodoManager {
     }
 
     this.container.innerHTML =
-      `<p class="status">${summarizeWorkload(this)} - oldest: ${oldestPendingLabel}</p>` +
+      `<p class="status">${summarizeWorkload(this.service)} - oldest: ${oldestPendingLabel}</p>` +
       '<h2 class="section-title">To do</h2>' +
       `<ul>${pendingHtml || '<li>Nothing pending. Add a task above.</li>'}</ul>` +
       '<h2 class="section-title">Completed</h2>' +
@@ -100,12 +104,18 @@ class TodoManager {
 
     const toggleButtons = this.container.querySelectorAll('[data-toggle]');
     for (const btn of toggleButtons) {
-      btn.addEventListener('click', () => this.toggleComplete(Number(btn.dataset.toggle)));
+      btn.addEventListener('click', () => {
+        this.service.toggleComplete(Number(btn.dataset.toggle));
+        this.render();
+      });
     }
 
     const deleteButtons = this.container.querySelectorAll('[data-delete]');
     for (const btn of deleteButtons) {
-      btn.addEventListener('click', () => this.deleteTask(Number(btn.dataset.delete)));
+      btn.addEventListener('click', () => {
+        this.service.deleteTask(Number(btn.dataset.delete));
+        this.render();
+      });
     }
 
     if (justAddedId) {
@@ -116,7 +126,7 @@ class TodoManager {
       }
     }
 
-    document.title = `Todo (${this.tasks.filter(t => !t.completed).length})`;
+    document.title = `Todo (${this.service.tasks.filter(t => !t.completed).length})`;
   }
 }
 
@@ -160,22 +170,27 @@ function summarizeWorkload(manager) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  const app = new TodoManager('task-container');
-  app.render();
+  const service = new TodoService();
+  const renderer = new TodoRenderer('task-container', service);
+  renderer.render();
 
   const input = document.getElementById('task-input');
   const addBtn = document.getElementById('add-task-btn');
   const addUrgentBtn = document.getElementById('add-urgent-btn');
 
   addBtn.addEventListener('click', () => {
-    if (app.addTask(input.value, 'simple')) {
+    const task = service.addTask(input.value, 'simple');
+    if (task) {
       input.value = '';
+      renderer.render(task.id);
     }
   });
 
   addUrgentBtn.addEventListener('click', () => {
-    if (app.addTask(input.value, 'urgent')) {
+    const task = service.addTask(input.value, 'urgent');
+    if (task) {
       input.value = '';
+      renderer.render(task.id);
     }
   });
 
@@ -185,4 +200,3 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-
