@@ -1,74 +1,5 @@
-// LocalStorageHandler is the only code that knows tasks live in localStorage.
-class LocalStorageHandler {
-  constructor(key = 'todo-tasks') {
-    this.key = key;
-  }
-
-  load() {
-    const raw = localStorage.getItem(this.key);
-    return raw ? JSON.parse(raw) : [];
-  }
-
-  save(tasks) {
-    localStorage.setItem(this.key, JSON.stringify(tasks));
-  }
-}
-
-// TodoService owns the task list and the operations on it. No DOM in here.
-class TodoService {
-  constructor(storage) {
-    this.storage = storage;
-    this.tasks = this.storage.load();
-  }
-
-  saveTasks() {
-    this.storage.save(this.tasks);
-  }
-
-  addTask(description, type) {
-    const trimmed = description.trim();
-    if (trimmed.length < 3) {
-      alert('Task needs at least a few characters.');
-      return null;
-    }
-
-    if (this.tasks.length >= 20) {
-      console.warn('This list is getting long - consider clearing completed tasks.');
-    }
-
-    const task = {
-      id: Date.now(),
-      desc: trimmed,
-      completed: false,
-      priority: 'normal',
-      createdAt: new Date().toLocaleTimeString()
-    };
-
-    if (type === 'urgent') {
-      task.priority = 'high';
-      task.desc = `[URGENT] ${trimmed}`;
-    }
-
-    this.tasks.push(task);
-    this.saveTasks();
-    return task;
-  }
-
-  toggleComplete(id) {
-    const task = this.tasks.find(t => t.id === id);
-    if (!task) return;
-    task.completed = !task.completed;
-    this.saveTasks();
-  }
-
-  deleteTask(id) {
-    this.tasks = this.tasks.filter(t => t.id !== id);
-    this.saveTasks();
-  }
-}
-
 // TodoRenderer owns the DOM: it draws both lists and wires the row buttons.
-class TodoRenderer {
+export class TodoRenderer {
   constructor(containerId, service) {
     this.container = document.getElementById(containerId);
     this.service = service;
@@ -141,7 +72,7 @@ class TodoRenderer {
   }
 }
 
-// Builds the markup for a single row. Called from both render lists below.
+// Builds the markup for a single row. Called from both render lists above.
 function buildTaskRow(id, desc, completed, priority, createdAt, showActions) {
   const label = desc.length > 40 ? `${desc.slice(0, 40)}...` : desc;
   const priorityClass = priority === 'high' ? 'priority-high' : '';
@@ -179,36 +110,3 @@ function summarizeWorkload(manager) {
   const total = manager.tasks.length;
   return `${done}/${total} done - ${urgent} urgent, ${normal} normal remaining`;
 }
-
-window.addEventListener('DOMContentLoaded', () => {
-  const storage = new LocalStorageHandler();
-  const service = new TodoService(storage);
-  const renderer = new TodoRenderer('task-container', service);
-  renderer.render();
-
-  const input = document.getElementById('task-input');
-  const addBtn = document.getElementById('add-task-btn');
-  const addUrgentBtn = document.getElementById('add-urgent-btn');
-
-  addBtn.addEventListener('click', () => {
-    const task = service.addTask(input.value, 'simple');
-    if (task) {
-      input.value = '';
-      renderer.render(task.id);
-    }
-  });
-
-  addUrgentBtn.addEventListener('click', () => {
-    const task = service.addTask(input.value, 'urgent');
-    if (task) {
-      input.value = '';
-      renderer.render(task.id);
-    }
-  });
-
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      addBtn.click();
-    }
-  });
-});
