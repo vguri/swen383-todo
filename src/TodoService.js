@@ -35,7 +35,7 @@ export class TodoService {
 
         this.tasks.push(task);
         this.saveTasks();
-        return task;
+        return task.id;
     }
 
     toggleComplete(id) {
