@@ -1,6 +1,9 @@
 // Keeps tasks in memory only. Nothing survives a page refresh.
-export class InMemoryStorageHandler {
+import { StorageHandler } from './StorageHandler.js';
+
+export class InMemoryStorageHandler extends StorageHandler {
     constructor() {
+        super();
         this.tasks = [];
     }
 
